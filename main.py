@@ -3,19 +3,21 @@
 import remi.gui as gui
 from remi import start, App
 import brew_data
+import login
 import math
 import os
 import ast
 import copy
 
 class _brew_data:
-    def __init__(self):
-        self.hop_data = copy.deepcopy(brew_data.hop_data)
-        self.grist_data = copy.deepcopy(brew_data.grist_data)
-        self.water_chemistry_additions = copy.deepcopy(brew_data.water_chemistry_additions)
-        self.yeast_data = copy.deepcopy(brew_data.yeast_data)
-        self.constants = copy.deepcopy(brew_data.constants)
-		
+	def __init__(self):
+		self.hop_data = copy.deepcopy(brew_data.hop_data)
+		self.grist_data = copy.deepcopy(brew_data.grist_data)
+		self.water_chemistry_additions = copy.deepcopy(brew_data.water_chemistry_additions)
+		self.yeast_data = copy.deepcopy(brew_data.yeast_data)
+		self.constants = copy.deepcopy(brew_data.constants)
+
+
 class customFileUploader(gui.FileUploader):
 	def __init__(self, *args, **kwargs):
 		super(customFileUploader, self).__init__(*args, **kwargs)
@@ -76,27 +78,24 @@ class customTable(gui.Table):
 	def bind(self, command):
 		self.is_bound = command
 
-class remi_form(gui.Widget):
-	@gui.decorate_constructor_parameter_types([])
+class remi_form(gui.Container):
 	def __init__(self, *args, **kwargs):
 		super(remi_form, self).__init__(*args, **kwargs)
 		self.type = 'form'
 
-class remi_fieldset(gui.Widget):
-	@gui.decorate_constructor_parameter_types([])
+class remi_fieldset(gui.Container):
 	def __init__(self, *args, **kwargs):
 		super(remi_fieldset, self).__init__(*args, **kwargs)
 		self.type = 'fieldset'
 
 class remi_legend(gui.Widget, gui._MixinTextualWidget):
-	@gui.decorate_constructor_parameter_types([str])
 	def __init__(self, text='', *args, **kwargs):
 		super(remi_legend, self).__init__(*args, **kwargs)
 		self.type = 'legend'
 		self.set_text(text)
 
 
-class remi_labelframe(gui.Widget):
+class remi_labelframe(gui.Container):
 	def __init__(self, legend_text='', *args, **kwargs):
 		super(remi_labelframe, self).__init__(*args, **kwargs)
 		
@@ -116,14 +115,15 @@ class remi_labelframe(gui.Widget):
 # set_on_table_row_click_listener
 class beer_engine(App):
 	def __init__(self, *args, **kwargs):
-
+		
 		# INIT PER WEBBROWSER GLOBAL BREW_DATA VAIABLE
 		self._brew_data = _brew_data()
 
 		#DON'T MAKE CHANGES HERE, THIS METHOD GETS OVERWRITTEN WHEN SAVING IN THE EDITOR
 		if not 'editing_mode' in kwargs.keys():
 			super(beer_engine, self).__init__(*args, static_file_path={'my_res':'./res/'})
-
+		
+		
 	def idle(self):
 		#idle function called every update cycle
 		pass
@@ -133,14 +133,11 @@ class beer_engine(App):
 		
 	@staticmethod
 	def construct_ui(self):
-		
-
-		###################### CONFIG SECTION ############################
-		#DON'T MAKE CHANGES HERE, THIS METHOD GETS OVERWRITTEN WHEN SAVING IN THE EDITOR
-		
-		
-		self.mainContainer = gui.Widget(width='100%', height='100%')
+		self.mainContainer = gui.Container(width='100%', height='100%')
 		self.mainContainer.style['background-color'] = 'white'
+
+		login.login_dialogue().show(self)
+		
 		menubar = gui.MenuBar(height='4%')
 		menu = gui.Menu(width='100%',height='100%')
 		menu.style['z-index'] = '1'
@@ -164,9 +161,6 @@ class beer_engine(App):
 
 		self.fexporter = gui.FileDownloader('Export', 'none', style={"display": "none"}) 
 		self.mainContainer.append(self.fexporter, 'fexporter')
-
-		# self.fileOpenDialog = gui.FileUploader(savepath='./recipes', multiple_selection_allowed=False)
-		# self.fileOpenDialog.confirm_value.do(self.on_open_dialog_confirm)
 		
 		open_menu.onclick.do(lambda args: self.execute_javascript("document.getElementById('{0}').click();".format(self.fuploader.identifier)))
 
@@ -192,9 +186,13 @@ class beer_engine(App):
 
 		self.grist_editor = grist_editor = grist_editor_frame(self._brew_data)
 		grist_editor.style['position'] = 'relative'
+
+		self.defaults_editor = defaults_editor = defaults_editor_frame(self._brew_data)
+		defaults_editor.style['position'] = 'relative'
 		
 		tb.add_tab(hop_editor, 'Hop Editor', None)
 		tb.add_tab(grist_editor, 'Grist Editor', None)
+		tb.add_tab(defaults_editor, 'Defaults Editor', None)
 
 		return self.mainContainer
 	
@@ -270,7 +268,7 @@ class beer_engine(App):
 		self.execute_javascript("document.getElementById('{0}').click();".format(self.fexporter.identifier))
 
 	
-class engine_room_frame(gui.Widget):
+class engine_room_frame(gui.Container):
 	def __init__(self, _brew_data):
 		super(engine_room_frame, self).__init__()
 		
@@ -320,7 +318,7 @@ class engine_room_frame(gui.Widget):
 		boil_volume_ent.set_value('11')
 
 
-		ingredient_container = gui.Widget(width='460px', height='140px')
+		ingredient_container = gui.Container(width='460px', height='140px')
 		ingredient_container.style.update({"margin":"0px","width":"460px","height":"140px","top":"40px","left":"10px","position":"absolute","overflow":"auto"})
 		self.append(ingredient_container,'ingredient_container')
 
@@ -428,7 +426,7 @@ class engine_room_frame(gui.Widget):
 		default_text = '''Efficiency: {efficiency}%{enter}Final Gravity: {final_gravity}{enter}Alcohol (ABV): {abv}{enter}Colour: {colour}EBC{enter}Mash Liquor: {mash_liquor}L{enter}IBU:GU: {ibu_gu}'''.format(efficiency=self._brew_data.constants['Efficiency']*100, final_gravity=1.000, abv=0, colour=0, mash_liquor=0, ibu_gu=0, enter='\n\n')
 		calc_lbl.set_value(default_text)
 
-		hop_container = gui.Widget(width='510px', height='140px')
+		hop_container = gui.Container(width='510px', height='140px')
 		hop_container.style.update({"margin":"0px","width":"520px", "top":"260px","left":"10px","position":"absolute","overflow":"auto"})
 		self.append(hop_container,'hop_container')
 
@@ -1113,7 +1111,7 @@ class engine_room_frame(gui.Widget):
 			self.children['rem_1g_hop_butt'].onclick.connect(lambda e: self.add_weight_hops(-1))
 
 
-class hop_editor_frame(gui.Widget):
+class hop_editor_frame(gui.Container):
 	def __init__(self, _brew_data):
 		super(hop_editor_frame, self).__init__()
 		self.style.update({"margin":"0px","width":"800px","height":"480px","position":"relative","overflow":"auto"})
@@ -1388,7 +1386,7 @@ class hop_editor_frame(gui.Widget):
 		for hop in sorted(self._brew_data.hop_data, key=lambda kv: kv.lower()):
 			self.list_view.append(hop)
 
-class grist_editor_frame(gui.Widget):
+class grist_editor_frame(gui.Container):
 	def __init__(self, _brew_data):
 		super(grist_editor_frame, self).__init__()
 		self.style.update({"margin":"0px","width":"800px","height":"480px","position":"relative","overflow":"auto"})
@@ -1738,6 +1736,208 @@ class grist_editor_frame(gui.Widget):
 			'Copper Sugar'])
 		for grist_type in self.grist_type_combo_values:
 			self.grist_type_combo.append(grist_type)
+
+class defaults_editor_frame(gui.Container):
+	def __init__(self, _brew_data):
+		super(defaults_editor_frame, self).__init__()
+		self.style.update({"margin":"0px","width":"800px","height":"480px","position":"relative","overflow":"auto"})
+		
+		self._brew_data = _brew_data
+		
+
+		self.construct_ui()
+
+	def construct_ui(self):
+		# TARGET VOLUME
+		self.target_vol_lbl = gui.Label('Target Volume:')
+		self.target_vol_lbl.style.update({"margin": "0px", 
+										"top": "6.3%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.target_vol_lbl, 'target_vol_lbl')
+
+		self.target_vol_ent = gui.TextInput(True, '')
+		self.target_vol_ent.style.update({"margin": "0px", 
+										"width": "10.6%", "height": "4.4%", 
+										"top": "6.3%", "left": "20.2%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.target_vol_ent, 'target_vol_ent')
+
+		self.target_vol_litres_lbl = gui.Label('Litres')
+		self.target_vol_litres_lbl.style.update({"margin": "0px", 
+										"top": "6.3%", "left": "31.6%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.target_vol_litres_lbl, 'target_vol_litres_lbl')
+
+		# BOIL VOLUME
+		self.boil_vol_lbl = gui.Label('Boil Volume Scale:')
+		self.boil_vol_lbl.style.update({"margin": "0px", 
+										"top": "14.8%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.boil_vol_lbl, 'boil_vol_lbl')
+
+		self.boil_vol_ent = gui.TextInput(True, '')
+		self.boil_vol_ent.style.update({"margin": "0px", 
+										"width": "10.6%", "height": "4.4%", 
+										"top": "14.8%", "left": "22.7%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.boil_vol_ent, 'boil_vol_ent')
+
+		self.boil_vol_percent_lbl = gui.Label('%')
+		self.boil_vol_percent_lbl.style.update({"margin": "0px", 
+										"top": "14.8%", "left": "34.1%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.boil_vol_percent_lbl, 'boil_vol_percent_lbl')
+
+		# MASH EFFICIENCY
+		self.mash_efficiency_lbl = gui.Label('Mash Efficiency:')
+		self.mash_efficiency_lbl.style.update({"margin": "0px", 
+										"top": "23.3%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.mash_efficiency_lbl, 'mash_efficiency_lbl')
+
+		self.mash_efficiency_ent = gui.TextInput(True, '')
+		self.mash_efficiency_ent.style.update({"margin": "0px", 
+										"width": "10.6%", "height": "4.4%", 
+										"top": "23.3%", "left": "21.5%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.mash_efficiency_ent, 'mash_efficiency_ent')
+
+		self.mash_efficiency_percent_lbl = gui.Label('%')
+		self.mash_efficiency_percent_lbl.style.update({"margin": "0px", 
+										"top": "23.3%", "left": "32.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.mash_efficiency_percent_lbl, 'mash_efficiency_percent_lbl')
+
+		# LIQUOR TO GRIST
+		self.liquor_to_grist_lbl = gui.Label('Liquor to Grist Ratio:')
+		self.liquor_to_grist_lbl.style.update({"margin": "0px", 
+										"top": "31.7%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.liquor_to_grist_lbl, 'liquor_to_grist_lbl')
+
+		self.liquor_to_grist_ent = gui.TextInput(True, '')
+		self.liquor_to_grist_ent.style.update({"margin": "0px", 
+										"width": "10.6%", "height": "4.4%", 
+										"top": "31.7%", "left": "25.3%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.liquor_to_grist_ent, 'liquor_to_grist_ent')
+
+		self.liquor_to_grist_lperkg_lbl = gui.Label('L/kg')
+		self.liquor_to_grist_lperkg_lbl.style.update({"margin": "0px", 
+										"top": "31.7%", "left": "36.6%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.liquor_to_grist_lperkg_lbl, 'liquor_to_grist_lperkg_lbl')
+
+		# Attenuation Default
+		self.attenuation_defaults_lbl = gui.Label('Attenuation Default:')
+		self.attenuation_defaults_lbl.style.update({"margin": "0px", 
+										"top": "40.2%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.attenuation_defaults_lbl, 'attenuation_defaults_lbl')
+
+		self.attenuation_types = ['Low', 'Medium', 'High']
+		self.attenuation_type_combo = gui.DropDown.new_from_list(self.attenuation_types)
+		self.attenuation_type_combo.style.update({"margin": "0px", 
+										"width": "127px", "height": "6.4%", 
+										"top": "40.2%", "left": "25.3%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.attenuation_type_combo, 'attenuation_type_combo')
+
+		self.attenuation_temps = [62, 63, 64, 65, 66, 67, 68, 69, 70, 71, 72]
+		self.attenuation_temp_combo = gui.DropDown.new_from_list(self.attenuation_types)
+		self.attenuation_temp_combo.style.update({"margin": "0px", 
+										"width": "57px", "height": "6.4%", 
+										"top": "40.2%", "left": "42.9%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.attenuation_temp_combo, 'attenuation_temp_combo')
+
+		# Save On Close
+		self.save_on_close_lbl = gui.Label('Save on Close:')
+		self.save_on_close_lbl.style.update({"margin": "0px", 
+										"top": "48.6%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.save_on_close_lbl, 'save_on_close_lbl')
+
+		self.save_on_close_combo = gui.DropDown.new_from_list(['True', 'False'])
+		self.save_on_close_combo.style.update({"margin": "0px", 
+										"width": "12.2%", "height": "6.4%", 
+										"top": "48.6%", "left": "20.2%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.save_on_close_combo, 'save_on_close_combo')
+		
+		# DEFAULT BOIL TIME
+		self.default_boil_time_lbl = gui.Label('Liquor to Grist Ratio:')
+		self.default_boil_time_lbl.style.update({"margin": "0px", 
+										"top": "57.1%", "left": "3.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.default_boil_time_lbl, 'default_boil_time_lbl')
+
+		self.default_boil_time_ent = gui.TextInput(True, '')
+		self.default_boil_time_ent.style.update({"margin": "0px", 
+										"width": "8.6%", "height": "4.9%", 
+										"top": "57.1%", "left": "22.7%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.default_boil_time_ent, 'default_boil_time_ent')
+
+		self.default_boil_time_min_lbl = gui.Label('Minutes')
+		self.default_boil_time_min_lbl.style.update({"margin": "0px", 
+										"top": "57.1%", "left": "32.8%", 
+										"position": "absolute", 
+										"overflow": "auto"})
+		self.append(self.default_boil_time_min_lbl, 'default_boil_time_min_lbl')
+
+		# Configuration Buttons
+		self.save_all_butt = gui.Button('Save All to the Cloud')
+		self.save_all_butt.style.update({"margin":"0px",
+										"width":"143px","height":"28px",
+										"top":"93%","left":"80.8%",
+										"position":"absolute","overflow":"auto",
+										"disabled": "true"})
+		self.append(self.save_all_butt,'save_all')
+		# self.save_all_butt.onclick.connect(lambda e: self.delete_ingredient())
+
+		self.done_button = gui.Button('Done')
+		self.done_button.style.update({"margin":"0px",
+										"width":"83px","height":"28px",
+										"top":"93%","left":"69.4%",
+										"position":"absolute","overflow":"auto"})
+		self.append(self.done_button,'done_button')
+		# self.done_button.onclick.connect(lambda e: self.delete_ingredient())
+
+		self.reset_to_defaults_butt = gui.Button('Reset to Cloud Database')
+		self.reset_to_defaults_butt.style.update({"margin":"0px",
+										"width":"190px","height":"28px",
+										"top":"93%","left":"1.3%",
+										"position":"absolute","overflow":"auto"})
+		self.append(self.reset_to_defaults_butt,'reset_to_defaults_butt')
+		# self.done_button.onclick.connect(lambda e: self.delete_ingredient())
+
+	def reset_to_defaults(self):
+		pass
+
+	def save_all(self):
+		pass
+
+
 #Configuration
 configuration = {'config_project_name': 'untitled', 'config_address': '0.0.0.0', 'config_port': 8081, 'config_multiple_instance': True, 'config_enable_file_cache': True, 'config_start_browser': False, 'config_resourcepath': './res/'}
 
